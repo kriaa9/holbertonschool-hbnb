@@ -1,0 +1,161 @@
+```mermaid
+classDiagram
+    class BaseModel {
+        -UUID id
+        -DateTime createdAt
+        -DateTime updatedAt
+        +__init__()
+        +save()
+        +delete()
+        +update(data)
+        +to_dict() dict
+    }
+
+    class User {
+        -UUID id
+        -String firstName
+        -String lastName
+        -String email
+        -String passwordHash
+        -Boolean isAdmin
+        -DateTime createdAt
+        -DateTime updatedAt
+        +register(firstName, lastName, email, password) User
+        +updateProfile(data) User
+        +delete() Boolean
+        +authenticate(password) Boolean
+        +validateEmail() Boolean
+        +hashPassword(password) String
+        +getOwnedPlaces() List~Place~
+        +getReviews() List~Review~
+        +isOwnerOf(place) Boolean
+    }
+
+    class Place {
+        -UUID id
+        -String title
+        -Text description
+        -Decimal price
+        -Float latitude
+        -Float longitude
+        -UUID ownerId
+        -List~UUID~ amenityIds
+        -DateTime createdAt
+        -DateTime updatedAt
+        +create(data) Place
+        +update(data) Place
+        +delete() Boolean
+        +addAmenity(amenity) Boolean
+        +removeAmenity(amenity) Boolean
+        +validateCoordinates() Boolean
+        +validatePrice() Boolean
+        +getOwner() User
+        +getAmenities() List~Amenity~
+        +getReviews() List~Review~
+        +calculateAverageRating() Float
+        +getReviewCount() Integer
+    }
+
+    class Review {
+        -UUID id
+        -UUID placeId
+        -UUID userId
+        -Integer rating
+        -Text comment
+        -DateTime createdAt
+        -DateTime updatedAt
+        +create(data) Review
+        +update(data) Review
+        +delete() Boolean
+        +validateRating() Boolean
+        +checkOwnership() Boolean
+        +getPlace() Place
+        +getUser() User
+    }
+
+    class Amenity {
+        -UUID id
+        -String name
+        -Text description
+        -DateTime createdAt
+        -DateTime updatedAt
+        +create(data) Amenity
+        +update(data) Amenity
+        +delete() Boolean
+        +validateUniqueName() Boolean
+        +listPlaces() List~Place~
+    }
+
+    class PlaceAmenity {
+        -UUID placeId
+        -UUID amenityId
+        -DateTime createdAt
+        +associate(placeId, amenityId)
+        +dissociate(placeId, amenityId)
+    }
+
+    class Facade {
+        -userRepository UserRepository
+        -placeRepository PlaceRepository
+        -reviewRepository ReviewRepository
+        -amenityRepository AmenityRepository
+        +registerUser(data) User
+        +updateUser(userId, data) User
+        +getUser(userId) User
+        +deleteUser(userId) Boolean
+        +createPlace(userId, data) Place
+        +updatePlace(placeId, data) Place
+        +getPlace(placeId) Place
+        +deletePlace(placeId) Boolean
+        +listPlaces(filters) List~Place~
+        +addAmenityToPlace(placeId, amenityId) Boolean
+        +removeAmenityFromPlace(placeId, amenityId) Boolean
+        +submitReview(userId, placeId, data) Review
+        +updateReview(reviewId, data) Review
+        +getReview(reviewId) Review
+        +deleteReview(reviewId) Boolean
+        +listReviewsByPlace(placeId) List~Review~
+        +createAmenity(data) Amenity
+        +updateAmenity(amenityId, data) Amenity
+        +getAmenity(amenityId) Amenity
+        +deleteAmenity(amenityId) Boolean
+        +listAmenities() List~Amenity~
+    }
+
+    class ValidationRules {
+        +validateUserEmail(email) Boolean
+        +validatePassword(password) Boolean
+        +validateCoordinates(lat, long) Boolean
+        +validatePrice(price) Boolean
+        +validateRating(rating) Boolean
+        +validateAmenityName(name) Boolean
+        +validatePlaceTitle(title) Boolean
+        +validateReviewComment(comment) Boolean
+    }
+
+    User --|> BaseModel : Inherits
+    Place --|> BaseModel : Inherits
+    Review --|> BaseModel : Inherits
+    Amenity --|> BaseModel : Inherits
+
+    User "1" -- "0..*" Place : owns
+    User "1" -- "0..*" Review : writes
+    Place "1" -- "0..*" Review : has
+    Place "0..*" -- "0..*" Amenity : has/includes
+    Place "1" -- "0..*" PlaceAmenity : contains
+    Amenity "1" -- "0..*" PlaceAmenity : included in
+
+    Facade --> User : manages
+    Facade --> Place : manages
+    Facade --> Review : manages
+    Facade --> Amenity : manages
+    Facade --> ValidationRules : uses
+
+    note for User "Authentication and profile management"
+    note for Place "Property listings and metadata"
+    note for Review "User feedback and ratings (1-5)"
+    note for Amenity "Features/services available at places"
+    note for Facade "Central business logic manager"
+    note for BaseModel "Base class for all entities"
+    note for PlaceAmenity "Junction table for M:N relationship"
+```
