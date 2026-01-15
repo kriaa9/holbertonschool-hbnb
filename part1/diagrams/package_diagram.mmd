@@ -1,0 +1,49 @@
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        API[API Controllers]
+        Services[Services]
+        RequestHandlers[Request Handlers]
+    end
+
+    subgraph "Business Logic Layer"
+        Facade[HBnB Facade]
+        User[User Model]
+        Place[Place Model]
+        Review[Review Model]
+        Amenity[Amenity Model]
+        Rules[Business Rules]
+    end
+
+    subgraph "Persistence Layer"
+        Repository[Repository Pattern]
+        DBAccess[Database Access]
+        DataVal[Data Validation]
+    end
+
+    API --> Services
+    Services --> Facade
+    RequestHandlers --> Facade
+    
+    Facade --> User
+    Facade --> Place
+    Facade --> Review
+    Facade --> Amenity
+    
+    User --> Rules
+    Place --> Rules
+    Review --> Rules
+    Amenity --> Rules
+    
+    Facade --> Repository
+    Repository --> DBAccess
+    DBAccess --> DataVal
+
+    classDef presentationStyle fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef businessStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef persistenceStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    
+    class API,Services,RequestHandlers presentationStyle
+    class Facade,User,Place,Review,Amenity,Rules businessStyle
+    class Repository,DBAccess,DataVal persistenceStyle
+```
