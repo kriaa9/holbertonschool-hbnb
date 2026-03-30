@@ -4,81 +4,96 @@ Below are Mermaid sequence diagrams for four core API calls. Each shows how the 
 
 ## User Registration
 
-User submits sign-up details. API validates, hashes the password, stores the user, and returns a token or confirmation.
-
 ```mermaid
 sequenceDiagram
- participant User
- participant API as API Gateway / Controller
- participant Service as User Service
- participant DB as Database
+	participant User
+	participant API as API (Presentation)
+	participant Facade
+	participant Service as Service Layer
+	participant Model as Domain Model
+	participant DB as Database
 
- User->>API: POST /users (email, password, profile data)
- API->>Service: validateInput()
- Service->>Service: hashPassword()
- Service->>DB: insertUser(email, hashedPassword, profile)
- DB-->>Service: userId
- Service-->>API: success + auth token
- API-->>User: 201 Created (token, userId)
+	User->>API: POST /users (email, password, profile)
+	API->>Facade: route request
+	Facade->>Service: validate input
+	Service->>Model: build user + hash password
+	Model->>DB: insert user
+	DB-->>Model: userId
+	Model-->>Service: user entity
+	Service-->>Facade: user entity
+	Facade-->>API: success payload
+	API-->>User: 201 Created (token, userId)
 ```
 
 ## Place Creation
 
-Authenticated user creates a new place listing. API checks auth, validates payload, persists the place, and returns the created resource.
-
 ```mermaid
 sequenceDiagram
- participant User
- participant API as API Gateway / Controller
- participant Service as Place Service
- participant DB as Database
+	participant User
+	participant API as API (Presentation)
+	participant Facade
+	participant Service as Service Layer
+	participant Model as Domain Model
+	participant DB as Database
 
- User->>API: POST /places (title, location, price, etc.) + token
- API->>API: verifyAuth(token)
- API->>Service: validatePlacePayload()
- Service->>DB: insertPlace(ownerId, details)
- DB-->>Service: placeId
- Service-->>API: place resource
- API-->>User: 201 Created (placeId, details)
+	User->>API: POST /places (details) + token
+	API->>Facade: verify auth + forward
+	Facade->>Service: validate payload
+	Service->>Model: build place with ownerId
+	Model->>DB: insert place
+	DB-->>Model: placeId
+	Model-->>Service: place entity
+	Service-->>Facade: place entity
+	Facade-->>API: place resource
+	API-->>User: 201 Created (placeId)
 ```
 
 ## Review Submission
 
-User submits a review for a place. API verifies auth, validates rating/comment, ensures place exists, then stores the review.
-
 ```mermaid
 sequenceDiagram
- participant User
- participant API as API Gateway / Controller
- participant Service as Review Service
- participant DB as Database
+	participant User
+	participant API as API (Presentation)
+	participant Facade
+	participant Service as Service Layer
+	participant Model as Domain Model
+	participant DB as Database
 
- User->>API: POST /places/{id}/reviews (rating, comment) + token
- API->>API: verifyAuth(token)
- API->>Service: validateReviewPayload()
- Service->>DB: fetchPlace(id)
- DB-->>Service: place found
- Service->>DB: insertReview(placeId, userId, rating, comment)
- DB-->>Service: reviewId
- Service-->>API: review resource
- API-->>User: 201 Created (reviewId)
+	User->>API: POST /places/{id}/reviews (rating, comment) + token
+	API->>Facade: verify auth + forward
+	Facade->>Service: validate rating/comment
+	Service->>Model: ensure place exists
+	Model->>DB: fetch place(id)
+	DB-->>Model: place found
+	Model-->>Service: place ok
+	Service->>Model: guard duplicate review
+	Model->>DB: insert review
+	DB-->>Model: reviewId
+	Model-->>Service: review entity
+	Service-->>Facade: review entity
+	Facade-->>API: review resource
+	API-->>User: 201 Created (reviewId)
 ```
 
 ## Fetching a List of Places
 
-User requests a filtered list of places (e.g., by city, price range). API validates query params, service applies filters, and returns results.
-
 ```mermaid
 sequenceDiagram
- participant User
- participant API as API Gateway / Controller
- participant Service as Place Service
- participant DB as Database
+	participant User
+	participant API as API (Presentation)
+	participant Facade
+	participant Service as Service Layer
+	participant Model as Domain Model
+	participant DB as Database
 
- User->>API: GET /places?city=...&price_min=...&price_max=...
- API->>Service: validateQueryParams()
- Service->>DB: queryPlaces(filters)
- DB-->>Service: places[]
- Service-->>API: serialized list
- API-->>User: 200 OK (places[])
+	User->>API: GET /places?filters
+	API->>Facade: forward query
+	Facade->>Service: validate filters
+	Service->>Model: build query
+	Model->>DB: fetch places(filters)
+	DB-->>Model: places[]
+	Model-->>Service: places[]
+	Service-->>Facade: serialized list
+	Facade-->>API: list payload
+	API-->>User: 200 OK (places[])
 ```
