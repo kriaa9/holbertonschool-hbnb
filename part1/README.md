@@ -15,7 +15,7 @@ graph TB
     end
 
     subgraph Facade_Layer[Facade Interface]
-        FACADE[HBnBFacade\nroute_request()\nvalidate_input()\ndispatch()]
+        FACADE["HBnBFacade<br/>route_request()<br/>validate_input()<br/>dispatch()"]
     end
 
     subgraph Business_Layer[Business Logic Layer]
