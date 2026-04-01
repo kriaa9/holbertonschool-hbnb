@@ -2,6 +2,7 @@ from app.persistence.repository import InMemoryRepository
 from app.models.user import User
 from app.models.amenity import Amenity
 from app.models.place import Place
+from app.models.review import Review
 
 class HBnBFacade:
     def __init__(self):
@@ -120,3 +121,80 @@ class HBnBFacade:
             place.update(data_to_update)
 
         return place
+
+    # ─── REVIEW METHODS ───────────────────────────────────────
+
+    def create_review(self, review_data):
+        user_id = review_data.get('user_id')
+        place_id = review_data.get('place_id')
+
+        user = self.get_user(user_id)
+        if not user:
+            raise ValueError('User not found')
+
+        place = self.get_place(place_id)
+        if not place:
+            raise ValueError('Place not found')
+
+        review_payload = {
+            'text': review_data.get('text'),
+            'rating': review_data.get('rating'),
+            'place': place,
+            'user': user,
+        }
+        review = Review(**review_payload)
+        self.review_repo.add(review)
+        place.add_review(review)
+        return review
+
+    def get_review(self, review_id):
+        return self.review_repo.get(review_id)
+
+    def get_all_reviews(self):
+        return self.review_repo.get_all()
+
+    def get_reviews_by_place(self, place_id):
+        place = self.get_place(place_id)
+        if not place:
+            return None
+        return place.reviews
+
+    def update_review(self, review_id, review_data):
+        review = self.review_repo.get(review_id)
+        if not review:
+            return None
+
+        if 'user_id' in review_data:
+            user = self.get_user(review_data['user_id'])
+            if not user:
+                raise ValueError('User not found')
+            review.user = user
+
+        if 'place_id' in review_data:
+            place = self.get_place(review_data['place_id'])
+            if not place:
+                raise ValueError('Place not found')
+            if review in review.place.reviews:
+                review.place.reviews.remove(review)
+            place.add_review(review)
+            review.place = place
+
+        updatable_fields = ['text', 'rating']
+        data_to_update = {
+            key: value for key, value in review_data.items() if key in updatable_fields
+        }
+        if data_to_update:
+            review.update(data_to_update)
+
+        return review
+
+    def delete_review(self, review_id):
+        review = self.review_repo.get(review_id)
+        if not review:
+            return False
+
+        if review in review.place.reviews:
+            review.place.reviews.remove(review)
+
+        self.review_repo.delete(review_id)
+        return True
