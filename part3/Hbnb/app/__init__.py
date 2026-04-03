@@ -1,4 +1,8 @@
 from flask import Flask
+
+import config
+from app.extensions import db, bcrypt, jwt
+
 from flask_restx import Api
 from app.api.v1.users import api as users_ns
 from app.api.v1.amenities import api as amenities_ns
@@ -27,4 +31,7 @@ def create_app(config_class="config.DevelopmentConfig"):
     app = Flask(__name__)
     app.config.from_object(config_class)
     init_api(app)
+    db.init_app(app)
+    bcrypt.init_app(app)
+    jwt.init_app(app)
     return app

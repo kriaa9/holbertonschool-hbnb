@@ -1,8 +1,9 @@
 import re
 from app.models.base_model import BaseModel
+from app.extensions import bcrypt
 
 class User(BaseModel):
-    def __init__(self, first_name, last_name, email, is_admin=False):
+    def __init__(self, first_name, last_name, email, password, is_admin=False):
         super().__init__()
 
         if not first_name or not isinstance(first_name, str):
@@ -21,6 +22,9 @@ class User(BaseModel):
         if not re.match(email_regex, email):
             raise ValueError("email must follow a valid format (e.g. user@example.com)")
 
+        if not password or not isinstance(password, str):
+            raise ValueError("password is required and must be a string")
+
         if not isinstance(is_admin, bool):
             raise ValueError("is_admin must be a boolean")
 
@@ -28,3 +32,20 @@ class User(BaseModel):
         self.last_name = last_name
         self.email = email
         self.is_admin = is_admin
+        self.password = None
+        self.hash_password(password)
+
+    def hash_password(self, password):
+        """Hashes the password before storing it."""
+        self.password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    def verify_password(self, password):
+        """Verifies if the provided password matches the hashed password."""
+        return bcrypt.check_password_hash(self.password, password)
+
+    def update(self, data):
+        """Hashes password updates before delegating common updates."""
+        data_to_update = dict(data)
+        if 'password' in data_to_update:
+            self.hash_password(data_to_update.pop('password'))
+        super().update(data_to_update)
