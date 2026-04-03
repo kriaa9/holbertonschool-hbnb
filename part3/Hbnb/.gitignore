@@ -1,0 +1,81 @@
+pycache/
+*.py[cod]
+*$py.class
+
+Distribution / packaging
+.Python
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+Test / coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.coverage
+.coverage.*
+cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+Type checkers / linters
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+Flask
+instance/
+.webassets-cache
+
+Environment / secrets
+.env
+.env.*
+*.env
+*.local
+
+Logs
+*.log
+
+Databases
+*.db
+*.sqlite3
+
+Jupyter
+.ipynb_checkpoints/
+
+Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+OS files
+.DS_Store
+Thumbs.db
