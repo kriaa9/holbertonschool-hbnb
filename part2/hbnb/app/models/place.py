@@ -33,8 +33,8 @@ class Place(BaseModel):
 
     @price.setter
     def price(self, value):
-        if not isinstance(value, (int, float)) or value < 0:
-            raise ValueError("price must be a non-negative number")
+        if not isinstance(value, (int, float)) or value <= 0:
+            raise ValueError("price must be a positive number greater than 0")
         self._price = float(value)
 
     @property
