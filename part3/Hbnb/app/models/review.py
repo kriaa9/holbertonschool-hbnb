@@ -1,6 +1,8 @@
 from app.models.base_model import BaseModel
 
 class Review(BaseModel):
+    __abstract__ = True
+
     def __init__(self, text, rating, place, user):
         super().__init__()
 
