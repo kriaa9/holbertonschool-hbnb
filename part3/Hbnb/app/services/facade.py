@@ -1,4 +1,6 @@
-from app.persistence.repository import InMemoryRepository
+from app.persistence.amenity_repository import AmenityRepository
+from app.persistence.place_repository import PlaceRepository
+from app.persistence.review_repository import ReviewRepository
 from app.persistence.user_repository import UserRepository
 from app.models.user import User
 from app.models.amenity import Amenity
@@ -8,9 +10,26 @@ from app.models.review import Review
 class HBnBFacade:
     def __init__(self):
         self.user_repo = UserRepository()
-        self.place_repo = InMemoryRepository()
-        self.review_repo = InMemoryRepository()
-        self.amenity_repo = InMemoryRepository()
+        self.place_repo = PlaceRepository()
+        self.review_repo = ReviewRepository()
+        self.amenity_repo = AmenityRepository()
+
+    @staticmethod
+    def _attach_runtime_place_links(place, owner=None, amenities=None, reviews=None):
+        if not place:
+            return None
+        place.owner = owner
+        place.amenities = amenities or []
+        place.reviews = reviews or []
+        return place
+
+    @staticmethod
+    def _attach_runtime_review_links(review, user=None, place=None):
+        if not review:
+            return None
+        review.user = user
+        review.place = place
+        return review
 
     # ─── USER METHODS ─────────────────────────────────────────
 
@@ -45,11 +64,7 @@ class HBnBFacade:
         return self.amenity_repo.get_all()
 
     def update_amenity(self, amenity_id, amenity_data):
-        amenity = self.amenity_repo.get(amenity_id)
-        if not amenity:
-            return None
-        amenity.update(amenity_data)
-        return amenity
+        return self.amenity_repo.update_amenity(amenity_id, amenity_data)
 
     # ─── PLACE METHODS ────────────────────────────────────────
 
@@ -73,24 +88,44 @@ class HBnBFacade:
             'price': place_data.get('price'),
             'latitude': place_data.get('latitude'),
             'longitude': place_data.get('longitude'),
-            'owner': owner,
+            'owner_id': owner.id,
         }
 
         place = Place(**place_payload)
-        for amenity in amenities:
-            place.add_amenity(amenity)
-
         self.place_repo.add(place)
+        self._attach_runtime_place_links(place, owner=owner, amenities=amenities, reviews=[])
         return place
 
     def get_place(self, place_id):
-        return self.place_repo.get(place_id)
+        place = self.place_repo.get(place_id)
+        if not place:
+            return None
+
+        owner = self.get_user(place.owner_id) if place.owner_id else None
+        reviews = self.review_repo.get_reviews_by_place(place.id)
+        hydrated_reviews = [
+            self._attach_runtime_review_links(
+                review,
+                user=self.get_user(review.user_id) if review.user_id else None,
+                place=place,
+            )
+            for review in reviews
+        ]
+
+        return self._attach_runtime_place_links(place, owner=owner, amenities=[], reviews=hydrated_reviews)
 
     def get_all_places(self):
-        return self.place_repo.get_all()
+        places = self.place_repo.get_all()
+        hydrated_places = []
+        for place in places:
+            owner = self.get_user(place.owner_id) if place.owner_id else None
+            hydrated_places.append(
+                self._attach_runtime_place_links(place, owner=owner, amenities=[], reviews=[])
+            )
+        return hydrated_places
 
     def update_place(self, place_id, place_data):
-        place = self.place_repo.get(place_id)
+        place = self.get_place(place_id)
         if not place:
             return None
 
@@ -98,8 +133,10 @@ class HBnBFacade:
             owner = self.get_user(place_data['owner_id'])
             if not owner:
                 raise ValueError('Owner not found')
-            place.owner = owner
+        else:
+            owner = place.owner
 
+        updated_amenities = None
         if 'amenities' in place_data:
             amenity_ids = place_data['amenities']
             updated_amenities = []
@@ -108,27 +145,32 @@ class HBnBFacade:
                 if not amenity:
                     raise ValueError('Amenity not found')
                 updated_amenities.append(amenity)
-            place.amenities = updated_amenities
 
-        updatable_fields = ['title', 'description', 'price', 'latitude', 'longitude']
+        updatable_fields = ['title', 'description', 'price', 'latitude', 'longitude', 'owner_id']
         data_to_update = {
             key: value for key, value in place_data.items() if key in updatable_fields
         }
-        if data_to_update:
-            place.update(data_to_update)
+        updated_place = self.place_repo.update_place(place_id, data_to_update)
 
-        return place
+        if not updated_place:
+            return None
+
+        return self._attach_runtime_place_links(
+            updated_place,
+            owner=owner,
+            amenities=updated_amenities or getattr(place, 'amenities', []),
+            reviews=getattr(place, 'reviews', []),
+        )
 
     def delete_place(self, place_id):
-        place = self.place_repo.get(place_id)
+        place = self.get_place(place_id)
         if not place:
             return False
 
-        for review in list(place.reviews):
+        for review in self.review_repo.get_reviews_by_place(place_id):
             self.review_repo.delete(review.id)
 
-        self.place_repo.delete(place_id)
-        return True
+        return self.place_repo.delete(place_id)
 
     # ─── REVIEW METHODS ───────────────────────────────────────
 
@@ -147,28 +189,43 @@ class HBnBFacade:
         review_payload = {
             'text': review_data.get('text'),
             'rating': review_data.get('rating'),
-            'place': place,
-            'user': user,
+            'place_id': place.id,
+            'user_id': user.id,
         }
         review = Review(**review_payload)
         self.review_repo.add(review)
-        place.add_review(review)
-        return review
+        return self._attach_runtime_review_links(review, user=user, place=place)
 
     def get_review(self, review_id):
-        return self.review_repo.get(review_id)
+        review = self.review_repo.get(review_id)
+        if not review:
+            return None
+        user = self.get_user(review.user_id) if review.user_id else None
+        place = self.get_place(review.place_id) if review.place_id else None
+        return self._attach_runtime_review_links(review, user=user, place=place)
 
     def get_all_reviews(self):
-        return self.review_repo.get_all()
+        reviews = self.review_repo.get_all()
+        hydrated_reviews = []
+        for review in reviews:
+            user = self.get_user(review.user_id) if review.user_id else None
+            place = self.place_repo.get(review.place_id) if review.place_id else None
+            hydrated_reviews.append(self._attach_runtime_review_links(review, user=user, place=place))
+        return hydrated_reviews
 
     def get_reviews_by_place(self, place_id):
-        place = self.get_place(place_id)
+        place = self.place_repo.get(place_id)
         if not place:
             return None
-        return place.reviews
+        reviews = self.review_repo.get_reviews_by_place(place_id)
+        hydrated_reviews = []
+        for review in reviews:
+            user = self.get_user(review.user_id) if review.user_id else None
+            hydrated_reviews.append(self._attach_runtime_review_links(review, user=user, place=place))
+        return hydrated_reviews
 
     def update_review(self, review_id, review_data):
-        review = self.review_repo.get(review_id)
+        review = self.get_review(review_id)
         if not review:
             return None
 
@@ -176,33 +233,26 @@ class HBnBFacade:
             user = self.get_user(review_data['user_id'])
             if not user:
                 raise ValueError('User not found')
-            review.user = user
+        else:
+            user = review.user
 
         if 'place_id' in review_data:
             place = self.get_place(review_data['place_id'])
             if not place:
                 raise ValueError('Place not found')
-            if review in review.place.reviews:
-                review.place.reviews.remove(review)
-            place.add_review(review)
-            review.place = place
+        else:
+            place = review.place
 
-        updatable_fields = ['text', 'rating']
+        updatable_fields = ['text', 'rating', 'user_id', 'place_id']
         data_to_update = {
             key: value for key, value in review_data.items() if key in updatable_fields
         }
-        if data_to_update:
-            review.update(data_to_update)
 
-        return review
+        updated_review = self.review_repo.update_review(review_id, data_to_update)
+        if not updated_review:
+            return None
+
+        return self._attach_runtime_review_links(updated_review, user=user, place=place)
 
     def delete_review(self, review_id):
-        review = self.review_repo.get(review_id)
-        if not review:
-            return False
-
-        if review in review.place.reviews:
-            review.place.reviews.remove(review)
-
-        self.review_repo.delete(review_id)
-        return True
+        return self.review_repo.delete(review_id)
