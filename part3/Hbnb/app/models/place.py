@@ -1,6 +1,8 @@
 from app.models.base_model import BaseModel
 
 class Place(BaseModel):
+    __abstract__ = True
+
     def __init__(self, title, description, price, latitude, longitude, owner):
         super().__init__()
 
