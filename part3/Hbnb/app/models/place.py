@@ -1,5 +1,6 @@
 from app.models.base_model import BaseModel
 from app.extensions import db
+from app.models.associations import place_amenity
 
 class Place(BaseModel):
     __tablename__ = 'places'
@@ -9,10 +10,23 @@ class Place(BaseModel):
     price = db.Column(db.Float, nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    # Keep owner_id as a simple scalar for business logic until relationship mapping task.
-    owner_id = db.Column(db.String(36), nullable=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
 
-    def __init__(self, title, description, price, latitude, longitude, owner_id=None):
+    owner = db.relationship('User', back_populates='places', lazy=True)
+    reviews = db.relationship(
+        'Review',
+        back_populates='place',
+        cascade='all, delete-orphan',
+        lazy=True,
+    )
+    amenities = db.relationship(
+        'Amenity',
+        secondary=place_amenity,
+        back_populates='places',
+        lazy='subquery',
+    )
+
+    def __init__(self, title, description, price, latitude, longitude, owner=None, owner_id=None, user_id=None):
         super().__init__()
 
         self._validate_title(title)
@@ -20,19 +34,31 @@ class Place(BaseModel):
         self._validate_price(price)
         self._validate_latitude(latitude)
         self._validate_longitude(longitude)
-        self._validate_owner_id(owner_id)
+
+        resolved_user_id = user_id if user_id is not None else owner_id
+        if owner is not None:
+            from app.models.user import User
+            if not isinstance(owner, User):
+                raise ValueError("owner must be a valid User instance")
+            self.owner = owner
+            resolved_user_id = owner.id
+
+        self._validate_user_id(resolved_user_id)
 
         self.title = title
         self.description = description
         self.price = price
         self.latitude = latitude
         self.longitude = longitude
-        self.owner_id = owner_id
+        self.user_id = resolved_user_id
 
-        # Runtime-only helper attributes until ORM relationships are introduced.
-        self.owner = None
-        self.reviews = []    # List to store related Review instances
-        self.amenities = []  # List to store related Amenity instances
+    @property
+    def owner_id(self):
+        return self.user_id
+
+    @owner_id.setter
+    def owner_id(self, value):
+        self.user_id = value
 
     @staticmethod
     def _validate_title(title):
@@ -64,9 +90,9 @@ class Place(BaseModel):
             raise ValueError("longitude must be a float between -180.0 and 180.0")
 
     @staticmethod
-    def _validate_owner_id(owner_id):
-        if owner_id is not None and not isinstance(owner_id, str):
-            raise ValueError("owner_id must be a string")
+    def _validate_user_id(user_id):
+        if user_id is None or not isinstance(user_id, str):
+            raise ValueError("user_id is required and must be a string")
 
     def update(self, data):
         data_to_update = dict(data)
@@ -82,7 +108,9 @@ class Place(BaseModel):
         if 'longitude' in data_to_update:
             self._validate_longitude(data_to_update['longitude'])
         if 'owner_id' in data_to_update:
-            self._validate_owner_id(data_to_update['owner_id'])
+            data_to_update['user_id'] = data_to_update.pop('owner_id')
+        if 'user_id' in data_to_update:
+            self._validate_user_id(data_to_update['user_id'])
 
         super().update(data_to_update)
 
