@@ -6,12 +6,28 @@ class Review(BaseModel):
 
     text = db.Column(db.String(2048), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
-    # Keep scalar IDs for business rules until relationship mapping task.
-    user_id = db.Column(db.String(36), nullable=True)
-    place_id = db.Column(db.String(36), nullable=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    place_id = db.Column(db.String(36), db.ForeignKey('places.id'), nullable=False)
 
-    def __init__(self, text, rating, place_id=None, user_id=None):
+    user = db.relationship('User', back_populates='reviews', lazy=True)
+    place = db.relationship('Place', back_populates='reviews', lazy=True)
+
+    def __init__(self, text, rating, place=None, user=None, place_id=None, user_id=None):
         super().__init__()
+
+        if place is not None:
+            from app.models.place import Place
+            if not isinstance(place, Place):
+                raise ValueError("place must be a valid Place instance")
+            place_id = place.id
+            self.place = place
+
+        if user is not None:
+            from app.models.user import User
+            if not isinstance(user, User):
+                raise ValueError("user must be a valid User instance")
+            user_id = user.id
+            self.user = user
 
         self._validate_text(text)
         self._validate_rating(rating)
@@ -22,10 +38,6 @@ class Review(BaseModel):
         self.rating = rating
         self.place_id = place_id
         self.user_id = user_id
-
-        # Runtime-only helper attributes until ORM relationships are introduced.
-        self.place = None
-        self.user = None
 
     @staticmethod
     def _validate_text(text):
