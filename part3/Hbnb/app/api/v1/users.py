@@ -13,7 +13,7 @@ user_registration_model = api.model('UserRegistration', {
     'is_admin': fields.Boolean(description='Whether the user has admin privileges')
 })
 
-# Model used for updates, does not require password
+# Model used for updates, does not require fields and allows partial updates
 user_update_model = api.model('UserUpdate', {
     'first_name': fields.String(description='First name of the user'),
     'last_name': fields.String(description='Last name of the user'),
