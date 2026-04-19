@@ -1,99 +1,74 @@
-# HBnB API Sequence Diagrams
+# High-Level Package Diagram
 
-Below are Mermaid sequence diagrams for four core API calls. Each shows how the Presentation (API), Business Logic (services/models), and Persistence (database) layers collaborate. Short notes summarize the key steps.
+## Overview
 
-## User Registration
-
-```mermaid
-sequenceDiagram
-	participant User
-	participant API as API (Presentation)
-	participant Facade
-	participant Service as Service Layer
-	participant Model as Domain Model
-	participant DB as Database
-
-	User->>API: POST /users (email, password, profile)
-	API->>Facade: route request
-	Facade->>Service: validate input
-	Service->>Model: build user + hash password
-	Model->>DB: insert user
-	DB-->>Model: userId
-	Model-->>Service: user entity
-	Service-->>Facade: user entity
-	Facade-->>API: success payload
-	API-->>User: 201 Created (token, userId)
-```
-
-## Place Creation
+This diagram illustrates the three-layer architecture of HBnB Evolution and how the layers communicate through the **Facade pattern**.
 
 ```mermaid
-sequenceDiagram
-	participant User
-	participant API as API (Presentation)
-	participant Facade
-	participant Service as Service Layer
-	participant Model as Domain Model
-	participant DB as Database
+graph TB
+    subgraph Presentation_Layer["Presentation Layer — Services & API"]
+        direction TB
+        API_Users["Users API\n/api/v1/users"]
+        API_Places["Places API\n/api/v1/places"]
+        API_Reviews["Reviews API\n/api/v1/reviews"]
+        API_Amenities["Amenities API\n/api/v1/amenities"]
+    end
 
-	User->>API: POST /places (details) + token
-	API->>Facade: verify auth + forward
-	Facade->>Service: validate payload
-	Service->>Model: build place with ownerId
-	Model->>DB: insert place
-	DB-->>Model: placeId
-	Model-->>Service: place entity
-	Service-->>Facade: place entity
-	Facade-->>API: place resource
-	API-->>User: 201 Created (placeId)
+    subgraph Facade_Layer["Facade Interface"]
+        FACADE["HBnBFacade\nroute_request()\nvalidate_input()\ndispatch()"]
+    end
+
+    subgraph Business_Layer["Business Logic Layer — Models"]
+        direction LR
+        M_User["UserModel"]
+        M_Place["PlaceModel"]
+        M_Review["ReviewModel"]
+        M_Amenity["AmenityModel"]
+    end
+
+    subgraph Persistence_Layer["Persistence Layer"]
+        direction LR
+        REPO["Repository / DAO"]
+        DATABASE[("Database")]
+    end
+
+    API_Users --> FACADE
+    API_Places --> FACADE
+    API_Reviews --> FACADE
+    API_Amenities --> FACADE
+
+    FACADE --> M_User
+    FACADE --> M_Place
+    FACADE --> M_Review
+    FACADE --> M_Amenity
+
+    M_User --> REPO
+    M_Place --> REPO
+    M_Review --> REPO
+    M_Amenity --> REPO
+
+    REPO --> DATABASE
 ```
 
-## Review Submission
+## Layer Descriptions
 
-```mermaid
-sequenceDiagram
-	participant User
-	participant API as API (Presentation)
-	participant Facade
-	participant Service as Service Layer
-	participant Model as Domain Model
-	participant DB as Database
+### Presentation Layer
+Handles all HTTP interactions with the outside world. Exposes four RESTful endpoint groups (`/users`, `/places`, `/reviews`, `/amenities`). Responsible for parsing requests, enforcing authentication tokens, and serializing responses. It contains **no business logic**.
 
-	User->>API: POST /places/{id}/reviews (rating, comment) + token
-	API->>Facade: verify auth + forward
-	Facade->>Service: validate rating/comment
-	Service->>Model: ensure place exists
-	Model->>DB: fetch place(id)
-	DB-->>Model: place found
-	Model-->>Service: place ok
-	Service->>Model: guard duplicate review
-	Model->>DB: insert review
-	DB-->>Model: reviewId
-	Model-->>Service: review entity
-	Service-->>Facade: review entity
-	Facade-->>API: review resource
-	API-->>User: 201 Created (reviewId)
-```
+### Facade Interface
+The single entry-point between Presentation and Business Logic. It routes every incoming call, performs input coercion, and shields the API layer from knowing which internal service handles a request. Adding or replacing a service never requires changes in the API controllers.
 
-## Fetching a List of Places
+### Business Logic Layer
+Contains the four domain models — `UserModel`, `PlaceModel`, `ReviewModel`, `AmenityModel` — together with their validation rules, state transitions, and inter-entity relationships. This layer is the authoritative source of business rules.
 
-```mermaid
-sequenceDiagram
-	participant User
-	participant API as API (Presentation)
-	participant Facade
-	participant Service as Service Layer
-	participant Model as Domain Model
-	participant DB as Database
+### Persistence Layer
+The `Repository / DAO` abstraction decouples the domain models from any specific database technology. In Part 1 data is in-memory; Part 3 introduces a relational database. Because models only talk to the Repository interface, swapping storage engines requires no changes to business logic.
 
-	User->>API: GET /places?filters
-	API->>Facade: forward query
-	Facade->>Service: validate filters
-	Service->>Model: build query
-	Model->>DB: fetch places(filters)
-	DB-->>Model: places[]
-	Model-->>Service: places[]
-	Service-->>Facade: serialized list
-	Facade-->>API: list payload
-	API-->>User: 200 OK (places[])
-```
+## How the Facade Pattern Works Here
+
+1. An API controller receives an HTTP request and calls `HBnBFacade.route_request()`.
+2. The Facade validates and dispatches to the appropriate model (e.g., `UserModel.register()`).
+3. The model applies business rules, then reads or writes through the Repository.
+4. The result travels back up the same chain and is serialized by the API controller.
+
+This guarantees **strict layer separation**: no layer skips another, and each layer has one well-defined responsibility.
