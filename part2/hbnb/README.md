@@ -223,10 +223,12 @@ Use these to verify validation and error handling.
 ```bash
 curl -i -X POST "http://127.0.0.1:5000/api/v1/users/" \
   -H "Content-Type: application/json" \
-  -d '{"first_name":"Jane","last_name":"Doe","email":"john.doe@example.com"}'
+  -d '{"first_name":"Jane","last_name":"Doe","email":"johnny.doe@example.com"}'
 ```
 
 Expected status: `400`
+
+Note: this command assumes you already ran the user update step above. If you test it before updating the user, use the original email instead.
 
 ### 4.2 Invalid user email format
 
