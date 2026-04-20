@@ -110,7 +110,7 @@ class UserResource(Resource):
 
         if not is_admin:
             if current_user != user_id:
-                return {'error': 'You can only update your own profile'}, 403
+                return {'error': 'Unauthorized action'}, 403
             forbidden_fields = {'email', 'password', 'is_admin'}
             if forbidden_fields.intersection(user_data):
                 return {'error': 'You cannot modify email or password.'}, 400

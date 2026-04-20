@@ -50,6 +50,7 @@ erDiagram
     USER ||--o{ PLACE : owns
     USER ||--o{ REVIEW : writes
     PLACE ||--o{ REVIEW : receives
+    PLACE }o--o{ AMENITY : has
     PLACE ||--o{ PLACE_AMENITY : links
     AMENITY ||--o{ PLACE_AMENITY : links
 ```

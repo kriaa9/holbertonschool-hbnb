@@ -10,19 +10,13 @@ class Place(BaseModel):
     price = db.Column(db.Float, nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    owner_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
 
-    owner = db.relationship('User', back_populates='places', lazy=True)
-    reviews = db.relationship(
-        'Review',
-        back_populates='place',
-        cascade='all, delete-orphan',
-        lazy=True,
-    )
+    reviews = db.relationship('Review', backref='place', cascade='all, delete-orphan', lazy=True)
     amenities = db.relationship(
         'Amenity',
         secondary=place_amenity,
-        back_populates='places',
+        backref=db.backref('places', lazy=True),
         lazy='subquery',
     )
 
@@ -35,30 +29,21 @@ class Place(BaseModel):
         self._validate_latitude(latitude)
         self._validate_longitude(longitude)
 
-        resolved_user_id = user_id if user_id is not None else owner_id
+        resolved_owner_id = user_id if user_id is not None else owner_id
         if owner is not None:
             from app.models.user import User
             if not isinstance(owner, User):
                 raise ValueError("owner must be a valid User instance")
-            self.owner = owner
-            resolved_user_id = owner.id
+            resolved_owner_id = owner.id
 
-        self._validate_user_id(resolved_user_id)
+        self._validate_owner_id(resolved_owner_id)
 
         self.title = title
         self.description = description
         self.price = price
         self.latitude = latitude
         self.longitude = longitude
-        self.user_id = resolved_user_id
-
-    @property
-    def owner_id(self):
-        return self.user_id
-
-    @owner_id.setter
-    def owner_id(self, value):
-        self.user_id = value
+        self.owner_id = resolved_owner_id
 
     @staticmethod
     def _validate_title(title):
@@ -90,9 +75,9 @@ class Place(BaseModel):
             raise ValueError("longitude must be a float between -180.0 and 180.0")
 
     @staticmethod
-    def _validate_user_id(user_id):
-        if user_id is None or not isinstance(user_id, str):
-            raise ValueError("user_id is required and must be a string")
+    def _validate_owner_id(owner_id):
+        if owner_id is None or not isinstance(owner_id, str):
+            raise ValueError("owner_id is required and must be a string")
 
     def update(self, data):
         data_to_update = dict(data)
@@ -108,9 +93,7 @@ class Place(BaseModel):
         if 'longitude' in data_to_update:
             self._validate_longitude(data_to_update['longitude'])
         if 'owner_id' in data_to_update:
-            data_to_update['user_id'] = data_to_update.pop('owner_id')
-        if 'user_id' in data_to_update:
-            self._validate_user_id(data_to_update['user_id'])
+            self._validate_owner_id(data_to_update['owner_id'])
 
         super().update(data_to_update)
 
