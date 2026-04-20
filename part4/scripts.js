@@ -1,5 +1,8 @@
 const API_BASE = 'http://127.0.0.1:5000/api/v1';
 let sessionExpiredOnLoad = false;
+let cachedAuthUser = null;
+let cachedAuthUserId = null;
+let authUserFetchPromise = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   const token = getValidToken();
@@ -42,6 +45,9 @@ function setTokenCookie(token) {
 
 function clearTokenCookie() {
   document.cookie = 'token=; path=/; Max-Age=0';
+  cachedAuthUser = null;
+  cachedAuthUserId = null;
+  authUserFetchPromise = null;
 }
 
 function decodeTokenPayload(token) {
@@ -84,6 +90,96 @@ function getValidToken() {
   return token;
 }
 
+function getTokenUserId(token) {
+  const payload = decodeTokenPayload(token);
+  if (!payload || typeof payload.sub !== 'string') {
+    return null;
+  }
+
+  return payload.sub;
+}
+
+function getUserDisplayName(user, fallback = '') {
+  const firstName = typeof user?.first_name === 'string' ? user.first_name.trim() : '';
+  const lastName = typeof user?.last_name === 'string' ? user.last_name.trim() : '';
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  if (fullName) {
+    return fullName;
+  }
+
+  const singleName = typeof user?.name === 'string' ? user.name.trim() : '';
+  if (singleName) {
+    return singleName;
+  }
+
+  return fallback;
+}
+
+async function fetchAuthenticatedUser(token) {
+  if (!token) {
+    return null;
+  }
+
+  const userId = getTokenUserId(token);
+  if (!userId) {
+    return null;
+  }
+
+  if (cachedAuthUser && cachedAuthUserId === userId) {
+    return cachedAuthUser;
+  }
+
+  if (authUserFetchPromise && cachedAuthUserId === userId) {
+    return authUserFetchPromise;
+  }
+
+  cachedAuthUserId = userId;
+  authUserFetchPromise = (async () => {
+    const { response, data } = await apiRequest(`/users/${userId}`, { token });
+    if (!response.ok || !data || typeof data !== 'object') {
+      return null;
+    }
+
+    cachedAuthUser = data;
+    return data;
+  })();
+
+  const resolvedUser = await authUserFetchPromise;
+  authUserFetchPromise = null;
+
+  if (!resolvedUser) {
+    cachedAuthUser = null;
+    cachedAuthUserId = null;
+    return null;
+  }
+
+  return resolvedUser;
+}
+
+function setNavbarUserLabel(text) {
+  const labels = document.querySelectorAll('[data-user-label="true"]');
+  labels.forEach((label) => {
+    label.textContent = text;
+  });
+}
+
+async function updateNavbarUserLabel(token) {
+  if (!token) {
+    setNavbarUserLabel('');
+    return;
+  }
+
+  const user = await fetchAuthenticatedUser(token);
+
+  if (getValidToken() !== token) {
+    return;
+  }
+
+  const displayName = getUserDisplayName(user);
+  setNavbarUserLabel(displayName ? `${displayName} ` : '');
+}
+
 function updateAuthLinks(token) {
   const isAuthenticated = Boolean(token);
   const loginButton = document.getElementById('login-link');
@@ -101,6 +197,13 @@ function updateAuthLinks(token) {
   logoutButtons.forEach((button) => {
     button.style.display = isAuthenticated ? 'inline-block' : 'none';
   });
+
+  if (!isAuthenticated) {
+    setNavbarUserLabel('');
+    return;
+  }
+
+  updateNavbarUserLabel(token);
 }
 
 function initLogoutControls() {
@@ -230,7 +333,7 @@ function initLoginPage() {
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
 
-  if (!loginForm || !loginError) {
+  if (!loginForm || !loginError || loginForm.dataset.bound === 'true') {
     return;
   }
 
@@ -260,6 +363,8 @@ function initLoginPage() {
       loginError.textContent = error.message;
     }
   });
+
+  loginForm.dataset.bound = 'true';
 }
 
 async function loginUser(email, password) {
@@ -278,8 +383,28 @@ async function loginUser(email, password) {
 function checkAuthenticationIndex() {
   const token = getValidToken();
   updateAuthLinks(token);
+  ensurePriceFilterOptions();
   attachPriceFilterHandler();
   fetchPlaces(token);
+}
+
+function ensurePriceFilterOptions() {
+  const priceFilter = document.getElementById('price-filter');
+  if (!priceFilter || priceFilter.dataset.boundOptions === 'true') {
+    return;
+  }
+
+  const options = ['All', '10', '50', '100'];
+  priceFilter.innerHTML = '';
+
+  options.forEach((value) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    priceFilter.appendChild(option);
+  });
+
+  priceFilter.dataset.boundOptions = 'true';
 }
 
 function attachPriceFilterHandler() {
@@ -488,8 +613,9 @@ async function enrichReviewsWithUsers(reviews, token) {
     reviews.map(async (review) => {
       let reviewerName = 'Anonymous';
 
-      if (review.user && (review.user.first_name || review.user.last_name)) {
-        reviewerName = `${review.user.first_name || ''} ${review.user.last_name || ''}`.trim();
+      const embeddedName = getUserDisplayName(review.user);
+      if (embeddedName) {
+        reviewerName = embeddedName;
       } else if (review.user_name) {
         reviewerName = review.user_name;
       } else if (review.user_id) {
@@ -510,8 +636,7 @@ async function fetchUserName(userId, token) {
     return userId;
   }
 
-  const fullName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
-  return fullName || userId;
+  return getUserDisplayName(data, userId);
 }
 
 function displayPlaceDetails(place, reviews) {
@@ -612,6 +737,16 @@ async function initAddReviewPage() {
 
     const reviewText = document.getElementById('review-text').value.trim();
     const rating = Number(document.getElementById('review-rating').value);
+
+    if (!reviewText) {
+      alert('Review text cannot be empty.');
+      return;
+    }
+
+    if (!reviewText) {
+      alert('Review text cannot be empty.');
+      return;
+    }
 
     try {
       const result = await submitReview(token, placeId, reviewText, rating);

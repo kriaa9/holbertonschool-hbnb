@@ -16,7 +16,7 @@
       <a href="login.html" data-auth-link="true">Login</a>
     </nav>
     <a href="login.html" id="login-link" class="login-button">Login</a>
-    <button id="logout-link" class="login-button logout-button" data-logout-link="true" type="button" style="display:none;">Logout</button>
+    <button id="logout-link" class="login-button logout-button" data-logout-link="true" type="button" style="display:none;"><span data-user-label="true"></span>Logout</button>
   </header>
 
   <main>
@@ -27,12 +27,7 @@
     <section id="filter" class="filter-row">
       <h2 class="visually-hidden">Filter Places</h2>
       <label for="price-filter">Max price per night:</label>
-      <select id="price-filter">
-        <option value="All">All</option>
-        <option value="10">10</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </select>
+      <select id="price-filter"></select>
     </section>
 
     <section id="places-list" class="places-list" aria-live="polite">
