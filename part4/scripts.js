@@ -555,6 +555,11 @@ async function initPlacePage() {
       const reviewText = document.getElementById('review-text').value.trim();
       const rating = Number(document.getElementById('review-rating').value);
 
+      if (!reviewText) {
+        alert('Review text cannot be empty.');
+        return;
+      }
+
       try {
         const result = await submitReview(token, placeId, reviewText, rating);
         if (!result) {
@@ -737,11 +742,6 @@ async function initAddReviewPage() {
 
     const reviewText = document.getElementById('review-text').value.trim();
     const rating = Number(document.getElementById('review-rating').value);
-
-    if (!reviewText) {
-      alert('Review text cannot be empty.');
-      return;
-    }
 
     if (!reviewText) {
       alert('Review text cannot be empty.');
