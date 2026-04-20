@@ -1,8 +1,10 @@
 const API_BASE = 'http://127.0.0.1:5000/api/v1';
+let sessionExpiredOnLoad = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-  const token = getCookie('token');
+  const token = getValidToken();
   updateAuthLinks(token);
+  initLogoutControls();
 
   const page = document.body.dataset.page;
 
@@ -38,10 +40,55 @@ function setTokenCookie(token) {
   document.cookie = `token=${encodeURIComponent(token)}; path=/`;
 }
 
+function clearTokenCookie() {
+  document.cookie = 'token=; path=/; Max-Age=0';
+}
+
+function decodeTokenPayload(token) {
+  const segments = token.split('.');
+  if (segments.length !== 3) {
+    return null;
+  }
+
+  try {
+    const normalized = segments[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(atob(padded));
+  } catch (error) {
+    return null;
+  }
+}
+
+function isTokenExpired(token) {
+  const payload = decodeTokenPayload(token);
+  if (!payload || typeof payload.exp !== 'number') {
+    return true;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp <= now;
+}
+
+function getValidToken() {
+  const token = getCookie('token');
+  if (!token) {
+    return null;
+  }
+
+  if (isTokenExpired(token)) {
+    clearTokenCookie();
+    sessionExpiredOnLoad = true;
+    return null;
+  }
+
+  return token;
+}
+
 function updateAuthLinks(token) {
   const isAuthenticated = Boolean(token);
   const loginButton = document.getElementById('login-link');
   const navLoginLinks = document.querySelectorAll('[data-auth-link="true"]');
+  const logoutButtons = document.querySelectorAll('[data-logout-link="true"]');
 
   if (loginButton) {
     loginButton.style.display = isAuthenticated ? 'none' : 'inline-block';
@@ -50,10 +97,69 @@ function updateAuthLinks(token) {
   navLoginLinks.forEach((link) => {
     link.style.display = isAuthenticated ? 'none' : 'inline';
   });
+
+  logoutButtons.forEach((button) => {
+    button.style.display = isAuthenticated ? 'inline-block' : 'none';
+  });
+}
+
+function initLogoutControls() {
+  const logoutButtons = document.querySelectorAll('[data-logout-link="true"]');
+
+  logoutButtons.forEach((button) => {
+    if (button.dataset.bound === 'true') {
+      return;
+    }
+
+    button.addEventListener('click', () => {
+      clearTokenCookie();
+      window.location.href = 'login.html?logged_out=1';
+    });
+
+    button.dataset.bound = 'true';
+  });
 }
 
 function getPlaceIdFromURL() {
   return new URLSearchParams(window.location.search).get('id');
+}
+
+function getCurrentPageWithQuery() {
+  const pageName = window.location.pathname.split('/').pop() || 'index.html';
+  return `${pageName}${window.location.search}`;
+}
+
+function buildLoginURL(reason, nextPath = '') {
+  const params = new URLSearchParams();
+
+  if (reason) {
+    params.set('reason', reason);
+  }
+
+  if (nextPath) {
+    params.set('next', nextPath);
+  }
+
+  const query = params.toString();
+  return query ? `login.html?${query}` : 'login.html';
+}
+
+function getPostLoginDestination() {
+  const nextPath = new URLSearchParams(window.location.search).get('next');
+
+  if (!nextPath) {
+    return 'index.html';
+  }
+
+  if (nextPath.startsWith('http://') || nextPath.startsWith('https://') || nextPath.startsWith('//')) {
+    return 'index.html';
+  }
+
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(nextPath)) {
+    return 'index.html';
+  }
+
+  return nextPath.startsWith('/') ? nextPath.slice(1) : nextPath;
 }
 
 async function parseResponse(response) {
@@ -73,6 +179,15 @@ async function apiRequest(path, options = {}) {
   const { method = 'GET', token = null, body = null } = options;
   const headers = {};
 
+  if (token && isTokenExpired(token)) {
+    clearTokenCookie();
+    sessionExpiredOnLoad = true;
+    return {
+      response: { ok: false, status: 401 },
+      data: { error: 'Your session expired. Please log in again.' },
+    };
+  }
+
   if (body !== null) {
     headers['Content-Type'] = 'application/json';
   }
@@ -88,6 +203,13 @@ async function apiRequest(path, options = {}) {
   });
 
   const data = await parseResponse(response);
+
+  if (response.status === 401 && token) {
+    clearTokenCookie();
+    sessionExpiredOnLoad = true;
+    updateAuthLinks(null);
+  }
+
   return { response, data };
 }
 
@@ -112,6 +234,17 @@ function initLoginPage() {
     return;
   }
 
+  const params = new URLSearchParams(window.location.search);
+  const reason = params.get('reason');
+
+  if (params.get('logged_out') === '1') {
+    loginError.textContent = 'You have been logged out.';
+  } else if (reason === 'session_expired' || sessionExpiredOnLoad) {
+    loginError.textContent = 'Your session expired. Please log in again.';
+  } else if (reason === 'auth_required') {
+    loginError.textContent = 'Please log in to continue.';
+  }
+
   loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -122,7 +255,7 @@ function initLoginPage() {
 
     try {
       await loginUser(email, password);
-      window.location.href = 'index.html';
+      window.location.href = getPostLoginDestination();
     } catch (error) {
       loginError.textContent = error.message;
     }
@@ -143,7 +276,7 @@ async function loginUser(email, password) {
 }
 
 function checkAuthenticationIndex() {
-  const token = getCookie('token');
+  const token = getValidToken();
   updateAuthLinks(token);
   attachPriceFilterHandler();
   fetchPlaces(token);
@@ -168,6 +301,12 @@ async function fetchPlaces(token) {
   }
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      updateAuthLinks(null);
+      await fetchPlaces(null);
+      return;
+    }
+
     renderEmptyState(placesList, data.error || 'Failed to load places.');
     return;
   }
@@ -270,7 +409,7 @@ function applyPriceFilter() {
 }
 
 async function initPlacePage() {
-  const token = getCookie('token');
+  const token = getValidToken();
   const placeId = getPlaceIdFromURL();
 
   updateAuthLinks(token);
@@ -292,7 +431,11 @@ async function initPlacePage() {
       const rating = Number(document.getElementById('review-rating').value);
 
       try {
-        await submitReview(token, placeId, reviewText, rating);
+        const result = await submitReview(token, placeId, reviewText, rating);
+        if (!result) {
+          return;
+        }
+
         alert('Review submitted successfully!');
         reviewForm.reset();
         await fetchPlaceDetails(token, placeId);
@@ -316,6 +459,13 @@ async function fetchPlaceDetails(token, placeId) {
   const { response, data } = await apiRequest(`/places/${placeId}`, { token });
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      updateAuthLinks(null);
+      checkAuthenticationPlace(null);
+      await fetchPlaceDetails(null, placeId);
+      return;
+    }
+
     showPlaceLoadError(data.error || 'Failed to load place details.');
     return;
   }
@@ -464,7 +614,11 @@ async function initAddReviewPage() {
     const rating = Number(document.getElementById('review-rating').value);
 
     try {
-      await submitReview(token, placeId, reviewText, rating);
+      const result = await submitReview(token, placeId, reviewText, rating);
+      if (!result) {
+        return;
+      }
+
       alert('Review submitted successfully!');
       reviewForm.reset();
     } catch (error) {
@@ -476,11 +630,12 @@ async function initAddReviewPage() {
 }
 
 function checkAuthenticationForAddReview() {
-  const token = getCookie('token');
+  const token = getValidToken();
   updateAuthLinks(token);
 
   if (!token) {
-    window.location.href = 'index.html';
+    const reason = sessionExpiredOnLoad ? 'session_expired' : 'auth_required';
+    window.location.href = buildLoginURL(reason, getCurrentPageWithQuery());
     return null;
   }
 
@@ -511,6 +666,11 @@ async function submitReview(token, placeId, reviewText, rating) {
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      window.location.href = buildLoginURL('session_expired', getCurrentPageWithQuery());
+      return null;
+    }
+
     throw new Error(data.error || 'Failed to submit review');
   }
 

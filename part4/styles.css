@@ -67,10 +67,24 @@ button {
   cursor: pointer;
 }
 
+#login-link,
+#logout-link {
+  min-width: 92px;
+  text-align: center;
+}
+
+.logout-button {
+  background: #1f2937;
+}
+
 .login-button:hover,
 .details-button:hover,
 button:hover {
   background: var(--brand-dark);
+}
+
+.logout-button:hover {
+  background: #111827;
 }
 
 main {
