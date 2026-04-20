@@ -1,0 +1,250 @@
+:root {
+  --brand: #ff9900;
+  --brand-dark: #d67f00;
+  --bg: #ececec;
+  --surface: #ffffff;
+  --text: #111111;
+  --muted: #5f5f5f;
+  --border: #dddddd;
+  --danger: #a30000;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px;
+  background: var(--brand);
+}
+
+.logo {
+  height: 50px;
+  width: auto;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.main-nav a {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.main-nav a:hover {
+  text-decoration: underline;
+}
+
+.login-button,
+.details-button,
+button {
+  display: inline-block;
+  border: none;
+  border-radius: 6px;
+  background: var(--brand);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.login-button:hover,
+.details-button:hover,
+button:hover {
+  background: var(--brand-dark);
+}
+
+main {
+  width: min(1100px, 95%);
+  margin: 28px auto;
+  flex: 1;
+}
+
+.hero h1,
+.auth-section h1,
+.review-page h1 {
+  text-align: center;
+  margin: 0 0 24px;
+}
+
+.filter-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.filter-row label {
+  font-weight: 700;
+}
+
+#price-filter,
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.filter-row #price-filter {
+  width: auto;
+}
+
+.places-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.place-card,
+.review-card {
+  margin: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+}
+
+.place-card,
+.place-details,
+.auth-section,
+.review-page,
+.add-review {
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.place-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 200px;
+}
+
+.place-card h3 {
+  margin: 0;
+  text-align: center;
+  font-size: 2rem;
+}
+
+.place-card p {
+  margin: 0;
+  color: #2e2e2e;
+  font-size: 1.6rem;
+}
+
+.place-details {
+  margin: 10px 0 26px;
+  padding: 22px;
+  border-radius: 12px;
+}
+
+.place-details h2 {
+  text-align: center;
+  margin: 0 0 18px;
+}
+
+.place-info {
+  display: grid;
+  gap: 12px;
+  text-align: center;
+}
+
+#reviews h2 {
+  margin: 0 0 8px;
+}
+
+.review-card p {
+  margin: 8px 0;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-section,
+.review-page,
+.add-review {
+  border-radius: 12px;
+  padding: 22px;
+}
+
+.error-message {
+  min-height: 1.5em;
+  color: var(--danger);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.empty-state {
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+footer {
+  margin-top: auto;
+  text-align: center;
+  color: #ffffff;
+  background: var(--brand);
+  padding: 14px;
+}
+
+@media (max-width: 700px) {
+  .site-header {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .main-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+
+  main {
+    width: 94%;
+  }
+
+  .place-card {
+    margin: 10px;
+  }
+}
