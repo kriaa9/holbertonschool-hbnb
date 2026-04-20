@@ -1,6 +1,6 @@
 from app.extensions import db
 from app.models.review import Review
-from app.persistence.repository import SQLAlchemyRepository
+from app.persistence.sqlalchemy_repository import SQLAlchemyRepository
 
 
 class ReviewRepository(SQLAlchemyRepository):

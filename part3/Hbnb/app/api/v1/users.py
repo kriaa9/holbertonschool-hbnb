@@ -1,5 +1,5 @@
 from flask_restx import Namespace, Resource, fields
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from app.services import facade
 
 api = Namespace('users', description='User operations')
@@ -100,16 +100,28 @@ class UserResource(Resource):
     def put(self, user_id):
         """Update user information"""
         claims = get_jwt()
-        if not claims.get('is_admin', False):
-            return {'error': 'Admin privileges required'}, 403
+        is_admin = claims.get('is_admin', False)
+        current_user = get_jwt_identity()
 
         user_data = dict(api.payload or {})
 
-        allowed_fields = {'first_name', 'last_name', 'email', 'password', 'is_admin'}
+        if not user_data:
+            return {'error': 'Invalid input data'}, 400
+
+        if not is_admin:
+            if current_user != user_id:
+                return {'error': 'You can only update your own profile'}, 403
+            forbidden_fields = {'email', 'password', 'is_admin'}
+            if forbidden_fields.intersection(user_data):
+                return {'error': 'You cannot modify email or password.'}, 400
+            allowed_fields = {'first_name', 'last_name'}
+        else:
+            allowed_fields = {'first_name', 'last_name', 'email', 'password', 'is_admin'}
+
         if any(key not in allowed_fields for key in user_data):
             return {'error': 'Invalid input data'}, 400
 
-        if 'email' in user_data:
+        if is_admin and 'email' in user_data:
             existing_user = facade.get_user_by_email(user_data['email'])
             if existing_user and existing_user.id != user_id:
                 return {'error': 'Email already in use'}, 400
