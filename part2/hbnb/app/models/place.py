@@ -1,5 +1,6 @@
 from app.models.base_model import BaseModel
 
+
 class Place(BaseModel):
     def __init__(self, title, description, price, latitude, longitude, owner):
         super().__init__()
@@ -7,25 +8,40 @@ class Place(BaseModel):
         # Import here to avoid circular imports
         from app.models.user import User
 
-        if not title or not isinstance(title, str):
-            raise ValueError("title is required and must be a string")
-        if len(title) > 100:
-            raise ValueError("title must not exceed 100 characters")
-
-        if not isinstance(description, str):
-            raise ValueError("description must be a string")
-
         if not isinstance(owner, User):
             raise ValueError("owner must be a valid User instance")
 
         self.title = title
-        self.description = description
+        self.description = description if description is not None else ""
         self.price = price
         self.latitude = latitude
         self.longitude = longitude
         self.owner = owner
         self.reviews = []    # List to store related Review instances
         self.amenities = []  # List to store related Amenity instances
+
+    @property
+    def title(self):
+        return self._title
+
+    @title.setter
+    def title(self, value):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("title is required and must be a string")
+        clean_title = value.strip()
+        if len(clean_title) > 100:
+            raise ValueError("title must not exceed 100 characters")
+        self._title = clean_title
+
+    @property
+    def description(self):
+        return self._description
+
+    @description.setter
+    def description(self, value):
+        if not isinstance(value, str):
+            raise ValueError("description must be a string")
+        self._description = value.strip()
 
     @property
     def price(self):

@@ -6,6 +6,9 @@ from app.models.review import Review
 
 class HBnBFacade:
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.user_repo = InMemoryRepository()
         self.place_repo = InMemoryRepository()
         self.review_repo = InMemoryRepository()

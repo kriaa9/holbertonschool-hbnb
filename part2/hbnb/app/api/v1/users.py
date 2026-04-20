@@ -10,6 +10,12 @@ user_model = api.model('User', {
     'email': fields.String(required=True, description='Email of the user')
 })
 
+user_update_model = api.model('UserUpdate', {
+    'first_name': fields.String(description='First name of the user'),
+    'last_name': fields.String(description='Last name of the user'),
+    'email': fields.String(description='Email of the user')
+})
+
 
 @api.route('/')
 class UserList(Resource):
@@ -71,19 +77,23 @@ class UserResource(Resource):
             'email': user.email
         }, 200
 
-    @api.expect(user_model, validate=True)
+    @api.expect(user_update_model, validate=True)
     @api.response(200, 'User successfully updated')
     @api.response(404, 'User not found')
     @api.response(400, 'Invalid input data')
     @api.response(400, 'Email already registered')
     def put(self, user_id):
         """Update user information"""
-        user_data = api.payload
+        user_data = dict(api.payload or {})
+
+        if not user_data:
+            return {'error': 'Invalid input data'}, 400
 
         # Check if the new email is already taken by a different user
-        existing_user = facade.get_user_by_email(user_data['email'])
-        if existing_user and existing_user.id != user_id:
-            return {'error': 'Email already registered'}, 400
+        if 'email' in user_data:
+            existing_user = facade.get_user_by_email(user_data['email'])
+            if existing_user and existing_user.id != user_id:
+                return {'error': 'Email already registered'}, 400
 
         try:
             updated_user = facade.update_user(user_id, user_data)

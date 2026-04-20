@@ -34,10 +34,30 @@ place_model = api.model('Place', {
     'reviews': fields.List(fields.Nested(review_model), description='List of reviews')
 })
 
+place_create_model = api.model('PlaceCreate', {
+    'title': fields.String(required=True, description='Title of the place'),
+    'description': fields.String(description='Description of the place'),
+    'price': fields.Float(required=True, description='Price per night'),
+    'latitude': fields.Float(required=True, description='Latitude of the place'),
+    'longitude': fields.Float(required=True, description='Longitude of the place'),
+    'owner_id': fields.String(required=True, description='ID of the owner'),
+    'amenities': fields.List(fields.String, description='List of amenity IDs')
+})
+
+place_update_model = api.model('PlaceUpdate', {
+    'title': fields.String(description='Title of the place'),
+    'description': fields.String(description='Description of the place'),
+    'price': fields.Float(description='Price per night'),
+    'latitude': fields.Float(description='Latitude of the place'),
+    'longitude': fields.Float(description='Longitude of the place'),
+    'owner_id': fields.String(description='ID of the owner'),
+    'amenities': fields.List(fields.String, description='List of amenity IDs')
+})
+
 
 @api.route('/')
 class PlaceList(Resource):
-    @api.expect(place_model, validate=True)
+    @api.expect(place_create_model, validate=True)
     @api.response(201, 'Place successfully created')
     @api.response(400, 'Invalid input data')
     @api.response(404, 'Owner or amenity not found')
@@ -110,7 +130,7 @@ class PlaceResource(Resource):
             ]
         }, 200
 
-    @api.expect(place_model, validate=False)
+    @api.expect(place_update_model, validate=True)
     @api.response(200, 'Place updated successfully')
     @api.response(404, 'Place not found')
     @api.response(400, 'Invalid input data')
@@ -128,7 +148,16 @@ class PlaceResource(Resource):
         if not updated_place:
             return {'error': 'Place not found'}, 404
 
-        return {'message': 'Place updated successfully'}, 200
+        return {
+            'id': updated_place.id,
+            'title': updated_place.title,
+            'description': updated_place.description,
+            'price': updated_place.price,
+            'latitude': updated_place.latitude,
+            'longitude': updated_place.longitude,
+            'owner_id': updated_place.owner.id,
+            'amenities': [amenity.id for amenity in updated_place.amenities]
+        }, 200
 
 
 @api.route('/<place_id>/reviews')

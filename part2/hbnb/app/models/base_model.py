@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+
 class BaseModel:
     def __init__(self):
         self.id = str(uuid.uuid4())
@@ -14,6 +15,8 @@ class BaseModel:
     def update(self, data):
         """Update attributes based on a provided dictionary"""
         for key, value in data.items():
+            if key in {"id", "created_at", "updated_at"}:
+                continue
             if hasattr(self, key):
                 setattr(self, key, value)
         self.save()
