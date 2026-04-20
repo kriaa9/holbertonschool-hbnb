@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HBnB - Place Details</title>
+  <link rel="icon" href="images/icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="scripts.js" defer></script>
+</head>
+<body data-page="place">
+  <header class="site-header">
+    <img src="images/logo.png" class="logo" alt="HBnB Logo">
+    <nav class="main-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="login.html" data-auth-link="true">Login</a>
+    </nav>
+    <a href="login.html" id="login-link" class="login-button">Login</a>
+  </header>
+
+  <main>
+    <section id="place-details" class="place-details">
+      <div class="place-info"></div>
+    </section>
+
+    <section id="reviews">
+      <h2>Reviews</h2>
+      <div id="reviews-list"></div>
+    </section>
+
+    <section id="add-review" class="add-review" style="display:none;">
+      <h2>Add a Review</h2>
+      <form class="form" id="review-form">
+        <label for="review-text">Your Review:</label>
+        <textarea id="review-text" required></textarea>
+
+        <label for="review-rating">Rating:</label>
+        <select id="review-rating">
+          <option value="1">1 Star</option>
+          <option value="2">2 Stars</option>
+          <option value="3">3 Stars</option>
+          <option value="4">4 Stars</option>
+          <option value="5">5 Stars</option>
+        </select>
+
+        <button type="submit">Submit Review</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 HBnB. All rights reserved.</p>
+  </footer>
+</body>
+</html>

@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 import config
 from app.extensions import db, bcrypt, jwt
@@ -66,6 +67,7 @@ def seed_database():
 def create_app(config_class="config.DevelopmentConfig"):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     init_api(app)
     db.init_app(app)
     bcrypt.init_app(app)
